@@ -100,7 +100,6 @@ void setup_wifi() {
     log(message);
     snprintf(message, 128, "Secondary DNS server: %s", WiFi.dnsIP(1).toString().c_str());
     log(message);
-    log("Location: " LOCATION_NAME);
 }
 void setup_http_server() {
     char message[128];
@@ -139,11 +138,11 @@ void handle_http_metrics() {
         "# HELP " PROM_NAMESPACE "_info Metadata about the device\n"
         "# TYPE " PROM_NAMESPACE "_info gauge\n"
         "# UNIT " PROM_NAMESPACE "_info \n"
-        PROM_NAMESPACE "_info{version=\"%s\",board=\"%s\",sensor=\"%s\",location=\"%s\"} 1\n"
+        PROM_NAMESPACE "_info{version=\"%s\",board=\"%s\",sensor=\"%s\"} 1\n"
         "# HELP " PROM_NAMESPACE "_temperature_fahrenheit Current temperature in Fahrenheit\n"
         "# TYPE " PROM_NAMESPACE "_temperature_fahrenheit gauge\n"
         "# UNIT " PROM_NAMESPACE "_temperature_fahrenheit \u00B0F\n"
-        PROM_NAMESPACE "_temperature_fahrenheit{location=\"%s\"} %f\n";
+        PROM_NAMESPACE "_temperature_fahrenheit %f\n";
 
     read_sensors();        
     if (isnan(temperature)) {    
@@ -152,7 +151,7 @@ void handle_http_metrics() {
     }
 
     char response[BUFSIZE];    
-    snprintf(response, BUFSIZE, response_template, VERSION, BOARD_NAME, TEMPERATURE_SENSOR_NAME, LOCATION_NAME, LOCATION_NAME, temperature);
+    snprintf(response, BUFSIZE, response_template, VERSION, BOARD_NAME, TEMPERATURE_SENSOR_NAME, temperature);
     http_server.send(200, "text/plain; charset=utf-8", response);
 }
 

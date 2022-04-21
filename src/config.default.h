@@ -4,8 +4,6 @@
 #define DEBUG_MODE 0
 // Board name
 #define BOARD_NAME "ESP8266"
-// Location name
-#define LOCATION_NAME "Living Room"
 // Temperature sensor name
 #define TEMPERATURE_SENSOR_NAME "DS18B20"
 // GPIO where the DS18B20 is connected
