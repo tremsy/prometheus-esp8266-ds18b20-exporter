@@ -23,27 +23,23 @@ void log(char const *message, LogLevel level=LogLevel::INFO);
 
 ESP8266WebServer http_server(HTTP_SERVER_PORT);
 
+// Setup a oneWire instance to communicate with any OneWire devices
+OneWire oneWire(GPIO_PIN);
+
+// Pass our oneWire reference to Dallas Temperature sensor 
+DallasTemperature sensors(&oneWire);
+
 float temperature;
 uint32_t previous_read_time = 0;
-DallasTemperature sensors;
 
 void setup(void) {
     char message[128];
     Serial.begin(115200);
-    setup_ds18b20_sensor();
     setup_wifi();
     setup_http_server();
     snprintf(message, 128, "Prometheus namespace: %s", PROM_NAMESPACE);
     log(message);
     log("Setup done");
-}
-
-void setup_ds18b20_sensor() {
-    // Setup a oneWire instance to communicate with any OneWire devices
-    OneWire oneWire(GPIO_PIN);
-
-    // Pass our oneWire reference to Dallas Temperature sensor 
-    sensors = DallasTemperature(&oneWire);
 }
 
 void setup_wifi() {
@@ -146,7 +142,7 @@ void handle_http_metrics() {
         "# HELP " PROM_NAMESPACE "_temperature_fahrenheit Current temperature in Fahrenheit\n"
         "# TYPE " PROM_NAMESPACE "_temperature_fahrenheit gauge\n"
         "# UNIT " PROM_NAMESPACE "_temperature_fahrenheit \u00B0F\n"
-        PROM_NAMESPACE "_temperature_gauge{location=\"%s\"} %f\n";
+        PROM_NAMESPACE "_temperature_fahrenheit{location=\"%s\"} %f\n";
 
     read_sensors();        
     if (isnan(temperature)) {    
