@@ -1,7 +1,15 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+
+// DS18B20 libraries
 #include <OneWire.h>
 #include <DallasTemperature.h>
+
+// BME280 libraries
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+#include <SPI.h>
 
 #include "config.h"
 #include "version.h"
@@ -24,22 +32,39 @@ void log(char const *message, LogLevel level=LogLevel::INFO);
 ESP8266WebServer http_server(HTTP_SERVER_PORT);
 
 // Setup a oneWire instance to communicate with any OneWire devices
-OneWire oneWire(GPIO_PIN);
+OneWire oneWire(DS18B20_PIN);
 
 // Pass our oneWire reference to Dallas Temperature sensor 
 DallasTemperature sensors(&oneWire);
 
-float temperature;
+// Setup BME280 device (software SPI)
+Adafruit_BME280 bme(BME_CS, BME_MOSI, BME_MISO, BME_SCK);
+
+float temperature, temperature_bme, humidity, pressure, altitude;
 uint32_t previous_read_time = 0;
+bool bme_connected = false;
 
 void setup(void) {
     char message[128];
     Serial.begin(115200);
+    setup_bme_sensor();
     setup_wifi();
     setup_http_server();
     snprintf(message, 128, "Prometheus namespace: %s", PROM_NAMESPACE);
     log(message);
     log("Setup done");
+}
+
+void setup_bme_sensor() {  
+    log("Setting up BME280 sensor");
+    bme_connected = bme.begin(0x76);
+
+    if (bme_connected) {
+      log("Successfully connected to BME280");      
+    }
+    else {
+      log("Could not find a valid BME280 sensor", LogLevel::ERROR);
+    }
 }
 
 void setup_wifi() {
@@ -133,7 +158,7 @@ void handle_http_root() {
 
 void handle_http_metrics() {
     log_request();
-    static size_t const BUFSIZE = 1024;
+    static size_t const BUFSIZE = 2048;
     static char const *response_template =
         "# HELP " PROM_NAMESPACE "_info Metadata about the device\n"
         "# TYPE " PROM_NAMESPACE "_info gauge\n"
@@ -142,7 +167,23 @@ void handle_http_metrics() {
         "# HELP " PROM_NAMESPACE "_temperature_fahrenheit Current temperature in Fahrenheit\n"
         "# TYPE " PROM_NAMESPACE "_temperature_fahrenheit gauge\n"
         "# UNIT " PROM_NAMESPACE "_temperature_fahrenheit \u00B0F\n"
-        PROM_NAMESPACE "_temperature_fahrenheit %f\n";
+        PROM_NAMESPACE "_temperature_fahrenheit %f\n"
+	      "# HELP " PROM_NAMESPACE "_humidity_percent Relative humidity\n"
+        "# TYPE " PROM_NAMESPACE "_humidity_percent gauge\n"
+        "# UNIT " PROM_NAMESPACE "_humidity_percent %%\n"
+        PROM_NAMESPACE "_humidity_percent %f\n"
+        "# HELP " PROM_NAMESPACE "_bme_temperature_fahrenheit Current temperature in Fahrenheit\n"
+        "# TYPE " PROM_NAMESPACE "_bme_temperature_fahrenheit gauge\n"
+        "# UNIT " PROM_NAMESPACE "_bme_temperature_fahrenheit \u00B0F\n"
+        PROM_NAMESPACE "_bme_temperature_fahrenheit %f\n"
+        "# HELP " PROM_NAMESPACE "_barometric_pressure_inhg Barometric pressure in inches of mercury\n"
+        "# TYPE " PROM_NAMESPACE "_barometric_pressure_inhg gauge\n"
+        "# UNIT " PROM_NAMESPACE "_barometric_pressure_inhg inHg\n"
+        PROM_NAMESPACE "_barometric_pressure_inhg %f\n"
+        "# HELP " PROM_NAMESPACE "_approximate_altitude_feet Approximate altitude above sea level in feet\n"
+        "# TYPE " PROM_NAMESPACE "_approximate_altitude_feet gauge\n"
+        "# UNIT " PROM_NAMESPACE "_approximate_altitude_feet feet\n"
+        PROM_NAMESPACE "_approximate_altitude_feet %f\n";
 
     read_sensors();        
     if (isnan(temperature)) {    
@@ -151,7 +192,7 @@ void handle_http_metrics() {
     }
 
     char response[BUFSIZE];    
-    snprintf(response, BUFSIZE, response_template, VERSION, BOARD_NAME, TEMPERATURE_SENSOR_NAME, temperature);
+    snprintf(response, BUFSIZE, response_template, VERSION, BOARD_NAME, TEMPERATURE_SENSOR_NAME, temperature, humidity, temperature_bme, pressure, altitude);
     http_server.send(200, "text/plain; charset=utf-8", response);
 }
 
@@ -169,12 +210,22 @@ void read_sensors(boolean force) {
     previous_read_time = current_time;
 
     read_temperature_sensor();
+    read_bme_sensor();
 }
 
 void read_temperature_sensor() {
     log("Reading temperature sensor ...", LogLevel::DEBUG);
     sensors.requestTemperatures();
     temperature = sensors.getTempFByIndex(0);
+}
+
+void read_bme_sensor() {
+   if (bme_connected) {
+    temperature_bme = 1.8 * bme.readTemperature() + 32;
+    humidity = bme.readHumidity();
+    pressure = bme.readPressure() * 0.0002952998057228486F;
+    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA) * 3.28084F;
+   }   
 }
 
 void log_request() {

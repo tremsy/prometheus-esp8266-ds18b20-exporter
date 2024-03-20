@@ -5,9 +5,19 @@
 // Board name
 #define BOARD_NAME "ESP8266"
 // Temperature sensor name
-#define TEMPERATURE_SENSOR_NAME "DS18B20"
-// GPIO where the DS18B20 is connected
-#define GPIO_PIN 4
+#define TEMPERATURE_SENSOR_NAME "DS18B20/BME280"
+// Sea-level pressure
+#define SEALEVELPRESSURE_HPA 1013.25
+// GPIO pin for DS18B20
+#define DS18B20_PIN 4
+// GPIO pin for BME280 SCL/SCK
+#define BME_SCK 14
+// GPIO pin for BME280 SDO/MISO
+#define BME_MISO 12
+// GPIO pin for BME280 SDA/MOSI
+#define BME_MOSI 13
+// GPIO pin for BME280 CSB/CS
+#define BME_CS 2
 // How long to cache the sensor results, in milliseconds
 #define READ_INTERVAL 5000
 // How many times to try to read the sensor before returning an error
